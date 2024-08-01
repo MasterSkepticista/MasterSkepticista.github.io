@@ -1,13 +1,17 @@
 ---
-title: "Paper Title Number 1"
+title: "XLDA: Linear Discriminant Analysis for Scaling Continual Learning to Extreme Classification at the Edge"
 collection: publications
-permalink: /publication/2009-10-01-paper-title-number-1
-excerpt: 'This paper is about the number 1. The number 2 is left for future work.'
-date: 2009-10-01
-venue: 'Journal 1'
-slidesurl: 'http://academicpages.github.io/files/slides1.pdf'
-paperurl: 'http://academicpages.github.io/files/paper1.pdf'
-citation: 'Your Name, You. (2009). &quot;Paper Title Number 1.&quot; <i>Journal 1</i>. 1(1).'
+permalink: /publication/2023-07-21-xlda
+excerpt: 'An O(1) on-device continual learning classifier.'
+date: 2023-07-21
+venue: 'International Conference on Machine Learning (ICML), PAC-Bayes Workshop'
+# slidesurl: 'http://academicpages.github.io/files/slides1.pdf'
+paperurl: 'https://arxiv.org/pdf/2307.11317'
+citation: 'Shah, K., Veerendranath, V., Hebbar, A. and Bhat, R., 2023. XLDA: Linear Discriminant Analysis for Scaling Continual Learning to Extreme Classification at the Edge. arXiv preprint arXiv:2307.11317.'
 ---
 
-The contents above will be part of a list of publications, if the user clicks the link for the publication than the contents of section will be rendered as a full page, allowing you to provide more information about the paper for the reader. When publications are displayed as a single page, the contents of the above "citation" field will automatically be included below this section in a smaller font.
+FLOPs requirement for extreme classification grows with the number of classes. We propose a LDA to be viewed as an `O(1)` classifier training algorithm that not only amortizes memory access and matrix multiply costs for training a given class, but at the same time provides continual learning capability.
+
+In particular, we present:
+1. XLDA: a framework for on-device Class-incremental learning where an LDA classifier is shown to be equivalent to a fully-connected layer in extreme classification scenarios.
+2. Optimizations to enable XLDA-based training and inference on-device, under compute and storage constraints. We show upto **42x** speed up using a batched training approach and upto **5x** inference speedup with nearest neighbor search on extreme datasets like AliProducts (50k classes) and Google Landmarks V2 (81k classes).
