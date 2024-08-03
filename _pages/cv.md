@@ -9,6 +9,8 @@ redirect_from:
 
 {% include base_path %}
 
+Full version: [PDF](https://drive.google.com/file/d/1blFQIqhagkHfd3sqsjawCyPCvl0Evrtw/view?usp=drive_link)
+
 Education
 ======
 * B.Tech. in Electronics and Communications Engineering, Nirma University, 2020 \
