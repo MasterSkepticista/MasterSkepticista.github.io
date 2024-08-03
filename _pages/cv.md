@@ -19,16 +19,16 @@ Education
 Work experience
 ======
 * Research Engineer, Intel
-  * Building [OpenFL](https://github.com/securefederatedai/openfl) (a [**Linux Foundation** Project](https://openfl.io))
-  * Deployed India's **first** SGX-based Secure Federated Learning Stack for Chest X-Ray Anomaly Detection ([Link](https://health.economictimes.indiatimes.com/news/health-it/aster-dm-intel-carpl-collaborate-for-secure-federated-learning-platform/92599071)).
+  * Building [OpenFL](https://github.com/securefederatedai/openfl) (a [Linux Foundation Project](https://openfl.io))
+  * Deployed India's [first](https://health.economictimes.indiatimes.com/news/health-it/aster-dm-intel-carpl-collaborate-for-secure-federated-learning-platform/92599071) SGX-based Secure Federated Learning Stack for Chest X-Ray Anomaly Detection.
   
 * Intern, Intel
-  * Built a mechanistic interpretability toolbox - to measure uncertainty attention and weight patterns for image activations.
-  * Developed a hardened C++ application to run a tumor segmentation model within SGX Trusted Execution Environment.
+  * Built a mechanistic interpretability toolbox for image segmentation models.
+  * Developed a hardened C++ application to run a tumor segmentation model within an SGX TEE.
 
 Skills
 ======
-* **Programming:** Python, C++
+* **Programming:** Python, C++, \\(\LaTeX\\)
 * **Frameworks:** JAX, PyTorch
 * **Tools:** OpenMPI, Docker, Gramine
 
