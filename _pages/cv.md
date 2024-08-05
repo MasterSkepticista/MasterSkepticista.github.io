@@ -28,7 +28,7 @@ Work experience
 
 Skills
 ======
-* **Programming:** Python, C++, \\(\LaTeX\\)
+* **Programming:** Python, C++
 * **Frameworks:** JAX, PyTorch
 * **Tools:** OpenMPI, Docker, Gramine
 
