@@ -8,7 +8,7 @@ collection: portfolio
 
 The limiting factor on the size of models that can be trained, can be summarized to data movement speeds - either within the GPU (HBM bandwidth) or across GPUs (collective ops bandwidth). A big part of model scaling with the number of accelerators is achieved by reducing communication overhead across them. This is why protocols like Infiniband/NVLink exist.
 
-But can one get away without spending a fortune on 100G/400G NICs for training models across nodes? Turns out under the right assumptions, one can.
+But can we get away without spending a fortune on 100G/400G NICs for training models across nodes? Turns out, under the right assumptions, we can.
 
 Infrastructure
 ---
