@@ -28,7 +28,7 @@ author:
   location         : "Pale blue dot"
   employer         : "Intel"
   uri              : # URL
-  email            : "karanshah1698@gmail.com" 
+  # email            : "karanshah1698@gmail.com" 
 
   # Academic websites
   arxiv            : # URL - Update with the correct link to your profile
