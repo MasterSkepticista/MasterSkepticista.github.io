@@ -1,6 +1,6 @@
 ---
 layout: archive
-title: "CV"
+title: "Resume"
 permalink: /cv/
 author_profile: true
 redirect_from:
@@ -9,49 +9,18 @@ redirect_from:
 
 {% include base_path %}
 
-Full version: [PDF](https://drive.google.com/file/d/1blFQIqhagkHfd3sqsjawCyPCvl0Evrtw/view?usp=drive_link)
-
-Education
-======
+## Education
 * B.Tech. in Electronics and Communications Engineering, Nirma University, 2020 \
   Capstone Project: Mechanistic Interpretability of Structural MRI Segmentation Models.
 
-Work experience
-======
-* Research Engineer, Intel
-  * Building [OpenFL](https://github.com/securefederatedai/openfl) (a [Linux Foundation Project](https://openfl.io))
-  * Deployed India's [first](https://health.economictimes.indiatimes.com/news/health-it/aster-dm-intel-carpl-collaborate-for-secure-federated-learning-platform/92599071) SGX-based Secure Federated Learning Stack for Chest X-Ray Anomaly Detection.
-  
-* Intern, Intel
-  * Built a mechanistic interpretability toolbox for image segmentation models.
-  * Developed a hardened C++ application to run a tumor segmentation model within an SGX TEE.
+## Awards
+* Division Recognition Award (2021, 2022), Intel.
+* Technologist of the Year (2022, 2023), Vertical Solutions Group, Intel.
 
-Skills
-======
-* **Programming:** Python, C++
-* **Frameworks:** JAX, PyTorch
-* **Tools:** OpenMPI, Docker, Gramine
+## Extended CV
+More details can be found [here](https://drive.google.com/file/d/1blFQIqhagkHfd3sqsjawCyPCvl0Evrtw/view?usp=drive_link).
 
-Publications
-======
-  <ul>{% for post in site.publications reversed %}
-    {% include archive-single-cv.html %}
-  {% endfor %}</ul>
-  
-Talks
-======
-  <ul>{% for post in site.talks reversed %}
-    {% include archive-single-talk-cv.html  %}
-  {% endfor %}</ul>
-  
-<!-- Teaching
-======
-  <ul>{% for post in site.teaching reversed %}
-    {% include archive-single-cv.html %}
-  {% endfor %}</ul> -->
-
-Open Source
-===========
+## Open Source
 [securefederatedai/openfl](https://github.com/securefederatedai/openfl), 
 [google/scenic](https://github.com/google-research/scenic/tree/main),
 [google/jax](https://github.com/google/jax),
