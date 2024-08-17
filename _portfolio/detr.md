@@ -25,7 +25,8 @@ Baseline
 ===
 Let us measure what we are starting with. Our bench this time is an 8-A6000 cluster without NVLink. I made a couple of changes to ensure PyTorch version was 'as fast as possible'. Here is a summary of digressions:
 * Use `torch>=2.3` to ensure [Flash Attention](https://arxiv.org/abs/2205.14135) is used in `F.scaled_dot_product_attention`.
-* Set `torch.set_float32_matmul_precision(...)` to "medium".
+* Enable tensor cores; set `torch.set_float32_matmul_precision(...)` to "medium".
+* Wrap forward pass using `torch.autocast` to `bfloat16`.
 
 With these changes, it took 3 days to train a 300-epoch baseline on our 8-GPU cluster. I will skip the napkin math, but this is already faster than authors' numbers when normalized for per GPU FLOP throughput - notably from use of the new flash attention kernel that Ampere GPUs support.
 
@@ -43,8 +44,9 @@ This implementation takes 6.5 days to replicate the PyTorch baseline. How fast c
 
 <img style="display: block; margin: auto;" src="/images/detr_opts/pt_baseline.png" width="512">
 
-Optimize!
+Optimize.
 ===
+
 Disable Matching for padded objects
 ---
 This is actually a bug-fix rather than an optimization. COCO dataset does not guarantee a fixed number of objects for each image. This means the bipartite matcher would have to map a fixed set of object queries (say 100) to a randomly varying number of target objects for each image, triggering an expensive retrace of the graph.
@@ -87,8 +89,8 @@ With this bug-fix, we are now 40% faster, i.e. $$1.4$$ steps/s. It now takes 4.7
 Mixed Precision MatMuls
 ---
 Yes, there are no 'free-lunches', but I think we can make a strong case for the invention of `bfloat16` data type.
-We migrate `float32` matmuls to `bfloat16`, without any loss in final AP scores.
-For `flax`, it is the same as supplying `dtype=jnp.bfloat16` on supported modules.
+We migrate `float32` matmuls to `bfloat16`, without any loss in final AP scores. This is what we did in the PyTorch baseline.
+In `flax`, this is the same as supplying `dtype=jnp.bfloat16` on supported modules.
 
 ```python
 # Example conversion.
@@ -105,7 +107,7 @@ Huh! We should've called it a day... but let's keep going.
 
 Parallel Bipartite Matching on Decoders
 ---
-To achieve a high overall $$\text{mAP}$$ score, DETR authors propose computing loss over each decoder output. DETR uses a sequential stack of 6 decoders, each emitting bounding-box and classifier predictions for a given number of queries.
+To achieve a high overall $$\text{mAP}$$ score, DETR authors propose computing loss over each decoder output. DETR uses a sequential stack of 6 decoders, each emitting bounding-box and classifier predictions for 100 object queries.
 
 ```python
 # models/detr_base_model.py#L377
@@ -187,6 +189,6 @@ Summary
 ---
 Further gains are possible by replacing exact bipartite matching with an approximate matcher. In fact, it may be a good reason to do so - just like minibatch SGD does not give an accurate gradient estimate at each step. It is arguably its strong suit on why it converges so well. 
 
-Why should a matching algorithm be exact, if we are spending ~0.5M steps to converge anyway? Are there gains to be had by having an 'approximate' matching? Yes, and one way to go about it is using a regularized optimal transport solver. But that is for another day.
+Why should a matching algorithm be exact, if we are spending ~0.5M steps to converge anyway? Are there gains to be had by having an 'approximate' matching? Yes, and one way to go about it is using a regularized solver like Sinkhorn algorithm. But that's for another day.
 
 Training code for DETR with all above optimizations is available [here](https://github.com/masterskepticista/detr).
