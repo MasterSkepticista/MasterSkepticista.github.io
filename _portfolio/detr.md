@@ -28,7 +28,7 @@ Let us measure what we are starting with. Our bench this time is an 8-A6000 clus
 * Enable tensor cores; set `torch.set_float32_matmul_precision(...)` to "medium".
 * Wrap forward pass using `torch.autocast` to `bfloat16`.
 
-With these changes, it took 3 days to train a 300-epoch baseline on our 8-GPU cluster. I will skip the napkin math, but this is already faster than authors' numbers when normalized for per GPU FLOP throughput - notably from use of the new flash attention kernel that Ampere GPUs support.
+With these changes, it took 3 days (2.1 steps/s) to train a 300-epoch baseline on our 8-GPU cluster. I will skip the napkin math, but this is already faster than authors' numbers when normalized for per GPU FLOP throughput - notably from use of the new flash attention kernel that Ampere GPUs support.
 
 > N.B.: While I did try `torch.compile` with different options on sub-parts of the model/training step, it either ended up giving the same throughput, or failed to compile. 
 
@@ -40,9 +40,9 @@ Luckily a dusty [re-implementation](https://github.com/google-research/scenic/tr
 
 Scenic also [provides](https://github.com/google-research/scenic/blob/main/scenic/model_lib/matchers/hungarian_jax.py) GPU and TPU implementations of Hungarian matching. This is already significant work off-the-table.
 
-This implementation takes 6.5 days to replicate the PyTorch baseline. How fast can we go?
+This implementation takes 6.5 days to replicate the PyTorch baseline, at nearly 1 step/s. How fast can we go?
 
-<img style="display: block; margin: auto;" src="/images/detr_opts/pt_baseline.png" width="512">
+<img style="display: block; margin: auto;" src="/images/detr_opts/pt_baseline.png">
 
 Optimize.
 ===
