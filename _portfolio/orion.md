@@ -12,7 +12,7 @@ But can we get away without spending a fortune on 100G/400G NICs for training mo
 
 Infrastructure
 ---
-My team had four server blades each with the following spec:
+My team had four[^1] server blades each with the following spec:
 * Dual socket Xeon 6258R (56C/112T total)
 * 512GB DDR4 Memory
 * One RTX-3090 GPU
@@ -70,7 +70,7 @@ $$
 
 For a ResNet50 with 25M parameters, `gradient_size` is roughly 100MB per step, per GPU. Since each GPU needs a full copy of globally averaged gradients - a naive algorithm would require the lead host to `fetch` and `broadcast` 100MB data to/from each GPU. This would create a massive bottleneck on the main host, since the communication time would grow linearly on the number of GPUs.
 
-Lucky for us, most implementations of collectives today use the `RingAllReduce` algorithm, which amortizes the amount of transfers as number of GPUs increase, by communicating 'chunked' gradients. In other words: data communicated per GPU reaches an asymptotic limit, independent of the number of GPUs in the cluster.
+Lucky for us, most implementations[^nccl] of collectives today use the `RingAllReduce` algorithm, which amortizes the amount of transfers as number of GPUs increase, by communicating 'chunked' gradients. In other words: data communicated per GPU reaches an asymptotic limit, independent of the number of GPUs in the cluster.
 
 $$
 \text{data_per_gpu} = 2 (N - 1) \frac{\text{gradient_size}}{N}
@@ -115,7 +115,7 @@ We will now explore each optimization in detail.
 Reducing Communication
 ---
 Upto this point we communicate 25M `float32` values at the end of each step. One way to reduce communication could be by compressing gradients (lossy or otherwise). Here are our options:
-1. Cast gradients to `bfloat16`: No risk of overflow, but lossy due to high machine [$$\epsilon$$](https://www.johndcook.com/blog/2018/11/15/bfloat16/).
+1. Cast gradients to `bfloat16`: No risk of overflow, but lossy due to high machine $$\epsilon$$[^bf16eps].
 2. Cast gradients to `float16`: Risk of overflow, but lossless if renormalized.
 3. Use a more intelligent gradient compression schema (like sparsity?).
 
@@ -244,8 +244,6 @@ Result
 ---
 This cluster achieved a throughput roughly 20% higher than a $16/hr V100 AWS instance. My team saved ~$120k for close to a year of uptime.
 
-Helpful links
----
-1. [NCCL Performance Calculation](https://github.com/NVIDIA/nccl-tests/blob/master/doc/PERFORMANCE.md)
-2. [Accurate, Large Minibatch SGD: Training ImageNet in 1 Hour](https://arxiv.org/abs/1706.02677)
-3. [Comparing `bfloat16` range and precision to other 16-bit numbers](https://www.johndcook.com/blog/2018/11/15/bfloat16/)
+[^1]: We actually had an odd number of nodes. I rounded all calculations assuming 4, for it is a nice number for hardware.
+[^nccl]: [NCCL Bandwidth and Throughput Calculation](https://github.com/NVIDIA/nccl-tests/blob/master/doc/PERFORMANCE.md)
+[^bf16eps]: [Comparing `bfloat16` range and precision to other 16-bit numbers](https://www.johndcook.com/blog/2018/11/15/bfloat16/)
