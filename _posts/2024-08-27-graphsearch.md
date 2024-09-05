@@ -2,22 +2,18 @@
 title: 'Graph Search'
 date: 2024-08-27
 permalink: /posts/2024/08/graph-search/
+excerpt: "Time for an algorithm shopping spree."
 tags:
   - cs
 ---
 
-One of my (sub) goals was to study Topological sort while studying autograd internals. I realized I could not do justice
-studying it in isolation. And while I would have to study depth-first search (which topological sort is based on) from scratch, might as well add BFS, Dijkstra and A* to the cart.
+One of my (sub) goals was to study Topological sort while studying autograd internals. I realized I could not do justice studying it in isolation. And while I would have to study depth-first search (which topological sort is based on) from scratch anyway, might as well add Breadth-first Search to the cart.
 
-
-### Outline
+- [Intro](#intro)
 - [Toy problem: Maze solver](#toy-problem-maze-solver)
-- [DFS](#depth-first-search)
-- [BFS](#breadth-first-search)
-- Dijkstra
-- A*
-- Topological sort
-
+  - [Depth-First Search](#depth-first-search)
+  - [Breadth-First Search](#breadth-first-search)
+- [Topological Sort](#topological-sort)
 
 ```python
 import random
@@ -27,7 +23,7 @@ import numpy as np
 from IPython import display
 ```
 
-### Toy Problem: Maze solver
+## Toy Problem: Maze solver
 A maze is a mesh of cells with distinct paths that can (or cannot) be traversed, it is a graph. We will pick a toy problem, with the goal of finding a path from the origin (top-left) to 
 the sink (bottom-right) of a randomly generated maze/graph. There are [several](https://en.wikipedia.org/wiki/Graph_(abstract_data_type)#Common_data_structures_for_graph_representation) ways to encode a graph. Our graph will be encoded as an adjacency matrix, with `1` representing a wall and `0` representing a pathway.
 
@@ -36,11 +32,11 @@ I will use a simple recusive backtracking algorithm to generate mazes. [Here](ht
 
 ```python
 def draw(maze: np.ndarray):
-  """Auto-updating plot"""
+  """Auto-updating plot (note: only if in running in a notebook)"""
   display.clear_output(wait=True)
   plt.figure(figsize=(4, 4))
   plt.axis("off")
-  plt.imshow(maze, cmap="viridis_r")
+  plt.imshow(maze, cmap="plasma_r")
   plt.show()
 
 def generate_maze(n: int) -> np.ndarray:
@@ -78,6 +74,7 @@ def generate_maze(n: int) -> np.ndarray:
         # Pave thru the wall.
         maze[ny][nx] = 0
         maze[cy + dy // 2][cx + dx // 2] = 0
+        # Append new location for paving
         stack.append((ny, nx))
         found_unvisited_neighbor = True
         break
@@ -88,62 +85,68 @@ def generate_maze(n: int) -> np.ndarray:
     
   return maze
 
-# random.seed(42)
-maze = generate_maze(30)
+random.seed(42)
+maze = generate_maze(50)
 draw(maze)
 
-```
-
-
-    
-![png](output_3_0.png)
+```    
+<img style="display: block; margin: auto;" src="/images/posts/graphsearch/maze.png">
     
 
-
-Our goal now, is to search for a path from the origin (top-left) to sink (bottom-right). 
-
-### Depth-First Search
-
-A key feature of this search is that it exhaustively searches through all possible sub-vertices connected to a given vertex, before backtracking and moving to a different vertex at the same level. DFS has no foresight of how far it is from its goal. For example, if DFS is _very_ close to a solution, and then yeets off to a random sub-vertex, it will not come back until it has exhaustively searched in that wrong direction.
+Our goal now, is to search for a path from the origin (top-left) to sink (bottom-right). During our maze traversal, we will explore neighbors one step away.
 
 
 ```python
-def dfs(maze: np.ndarray,
+def get_neighbors(y, x):
+  """List of +/-1 neighbors of (y, x)."""
+  return [
+    (y + dy, x + dx) 
+    for dy, dx in [(1, 0), (-1, 0), (0, 1), (0, -1)]
+  ]
+```
+
+
+## Depth-First Search
+
+A key feature of this search is that it exhaustively searches through all possible sub-vertices connected to a given vertex, before backtracking and moving to a different vertex at the same level. It has no foresight of how far it is from its goal. Other words, even if it is _very_ close to a solution, and then yeets off to a random sub-vertex, it will not come back until it has exhaustively searched in that wrong direction.
+
+<center>
+  <img src="https://imgs.xkcd.com/comics/dfs.png">
+</center>
+
+> Pro-tip: Execute this in a notebook for an animated visual.
+
+```python
+def dfs(graph: np.ndarray,
         start: tuple[int, int] = (0, 1),
         end: tuple[int, int] = (-1, -2),
         visualize: bool = False) -> bool:
   """Checks if a path exists between `start` and `end`."""
-  assert maze[start] == maze[end] == 0, "One of `start` or `end` is a wall."
-  rows, cols = maze.shape
-
-  # Create a matrix of visited nodes.
-  visited = np.zeros_like(maze).astype(np.bool_)
-  visited[start] = True
-
-  # Define search directions.
-  directions = [(1, 0), (-1, 0), (0, 1), (0, -1)]
+  visited = np.zeros_like(graph).astype(np.bool_)
 
   candidates = [start]
+  visited[start] = True
+
   found = False
   while candidates:
+    if visualize: draw(np.where(visited, 0.5, maze))
 
-    if visualize:
-      # Color visited nodes.
-      draw(np.where(visited, 0.5, maze))
-
-    # If we hit the end, a path exists.
+    # Pick the most recent candidate, i.e. LIFO    
+    cy, cx = candidates.pop(-1)
+    
     if visited[end]:
       found = True
       break
 
-    # We pick the most recent candidates to search forward (LIFO).
-    # This is where "Depth" in DFS comes from.
-    cy, cx = candidates.pop(-1)
-
-    for dy, dx in directions:
-      ny, nx = cy + dy, cx + dx
-      if (0 <= nx < cols and 0 <= ny < rows and not maze[ny][nx] == 1 and
-          not visited[ny][nx]):
+    for ny, nx in get_neighbors(cy, cx):
+      if (
+        # within bounds?
+        0 <= ny < graph.shape[0] and
+        0 <= nx < graph.shape[1] and
+        not visited[ny][nx] and
+        # not a wall?
+        graph[ny][nx] != 1
+      ):
         candidates.append((ny, nx))
         visited[ny][nx] = True
 
@@ -151,66 +154,53 @@ def dfs(maze: np.ndarray,
 
 dfs(maze, visualize=True)
 ```
-
-
-    
-![png](output_5_0.png)
-    
-
-
-
-
-
+<img style="display: block; margin: auto;" src="/images/posts/graphsearch/dfs_maze.png">
+   
     True
 
 
+DFS search time is proportional to the number of vertices in our adjacency matrix - $$O(N^2)$$. The space required to store intermediate states is proportional to the number of vertices (since `visited` array and `candidates` stack are the only auxiliary objects in our function), therefore $$O(N^2)$$.
 
-DFS search time is proportional to the number of vertices in our adjacency matrix - $O(|N|^2)$. The space required to store intermediate states is proportional to the number of vertices (since `visited` array and `candidates` stack are the only auxiliary objects in our function), therefore $O(|N|^2)$.
-
-### Breadth-First Search
+## Breadth-First Search
 
 A natural modification to DFS could be made on candidate selection. In fact, all the search algorithms we will see today are merely intelligent ways of 'choosing where to search'.
 
 Instead of going down the rabbit-hole on a single vertex, what if we first explore all vertices available at a given level?
 
+> Pro-tip: Execute this in a notebook for an animated visual.
 
 ```python
-def bfs(maze: np.ndarray,
+def bfs(graph: np.ndarray,
         start: tuple[int, int] = (0, 1),
         end: tuple[int, int] = (-1, -2),
         visualize: bool = False) -> bool:
   """Checks if a path exists between `start` and `end`."""
-  assert maze[start] == maze[end] == 0, "One of `start` or `end` is a wall."
-  rows, cols = maze.shape
-
-  # Create a matrix of visited nodes.
-  visited = np.zeros_like(maze).astype(np.bool_)
-  visited[start] = True
-
-  # Define search directions.
-  directions = [(1, 0), (-1, 0), (0, 1), (0, -1)]
+  visited = np.zeros_like(graph).astype(np.bool_)
 
   candidates = [start]
+  visited[start] = True
+
   found = False
   while candidates:
-
-    if visualize:
-      # Color visited nodes.
-      draw(np.where(visited, 0.5, maze))
-
-    # If we hit the end, a path exists.
+    if visualize: draw(np.where(visited, 0.5, maze))
+    
+    # Pick candidates in the order they were added, i.e. FIFO.
+    # Observe that this is the *only* change from DFS!
+    cy, cx = candidates.pop(0)
+    
     if visited[end]:
       found = True
       break
 
-    # We pick candidates in the order they were added, like a queue (FIFO).
-    # It gives a feeling of parallel search at a given level.
-    cy, cx = candidates.pop(0)
-
-    for dy, dx in directions:
-      ny, nx = cy + dy, cx + dx
-      if (0 <= nx < cols and 0 <= ny < rows and not maze[ny][nx] == 1 and
-          not visited[ny][nx]):
+    for ny, nx in get_neighbors(cy, cx):
+      if (
+        # within bounds?
+        0 <= ny < graph.shape[0] and
+        0 <= nx < graph.shape[1] and
+        not visited[ny][nx] and
+        # not a wall?
+        graph[ny][nx] != 1
+      ):
         candidates.append((ny, nx))
         visited[ny][nx] = True
 
@@ -218,108 +208,194 @@ def bfs(maze: np.ndarray,
 
 bfs(maze, visualize=True)
 ```
-
-
+<img style="display: block; margin: auto;" src="/images/posts/graphsearch/bfs_maze.png">
     
-![png](output_8_0.png)
-    
-
-
-
-
 
     True
 
 
 
-BFS has the same time and space complexity as DFS in this example - $O(|N|^2)$.
+BFS has the same time and space complexity as DFS in this example - $$O(N^2)$$.
 
 > Note: We can do a microbenchmark to see that neither of DFS or BFS is relatively faster. This is an expected outcome for large, uniformly random mazes. Real world graphs typically carry structure bias towards depth (or width). Hence, choice of DFS/BFS should be informed by the structure of the graph.
 
 
 ```python
 # takes ~1 min
-%timeit -n 2 -r 10 dfs(generate_maze(500))
-%timeit -n 2 -r 10 bfs(generate_maze(500))
+%timeit -n 5 -r 10 dfs(generate_maze(500))
+%timeit -n 5 -r 10 bfs(generate_maze(500))
 ```
 
-    1.29 s ± 128 ms per loop (mean ± std. dev. of 10 runs, 2 loops each)
-    1.28 s ± 147 ms per loop (mean ± std. dev. of 10 runs, 2 loops each)
+    749 ms ± 58.2 ms per loop (mean ± std. dev. of 10 runs, 5 loops each)
+    778 ms ± 58.8 ms per loop (mean ± std. dev. of 10 runs, 5 loops each)
 
 
-### Guided Search
+## Topological Sort
 
-In certain cases we can 'tell' how far we are from the goal. This information can be used to speed up search (and find the shortest path), forming the basis of Dijkstra's algorithm.
+Now to what I wanted to study all along. Neural networks are directed acyclic graphs that take a set of input tensor(s), and through multiple parameterized transformations, return a set of outputs.
+
+We start with a method to generate sparsely-connected MLP graphs. We control sparsity using a parameter. Note that if sparsity is too high (say above `0.5`), you may end up with graphs unconnected with inputs or outputs. It won't impact our computation though. You can experiment with different values to understand how `toposort` identifies viable orderings.
+
+Bear with me for a moment. We will write a method `toposort(...)` to find these orderings from a given root node to the stopping points on the graph (i.e. nodes with no more ancestors).
 
 
 ```python
-import heapq
+import itertools
+import networkx as nx
 
-def dist(src: tuple[int, int], dest: tuple[int, int]):
-  return abs(src[0] - dest[0]) + abs(src[1] - dest[1])
+def generate_mlp(
+  layers: list[int], 
+  sparsity: float = 0., 
+  seed: int = 42
+) -> tuple[nx.DiGraph, dict]:
+  """Generate a layer-wise sparsely connected MLP.
+  
+  Args:
+    layers: A list of integers denoting nodes in each layer. First and 
+      last are considered input and output nodes respectively.
+    sparsity: A float between [0, 1] representing how sparse the graph
+      should be. 0 means no sparsity, i.e. a fully-connected MLP.
+    seed: For reproducibility.
+  
+  Returns:
+    A tuple of nx.DiGraph and options to plot it pretty.
+  """
+  random.seed(seed)
+  num_layers = len(layers)
 
-def dijkstra(maze: np.ndarray,
-             start: tuple[int, int] = (0, 1),
-             end: tuple[int, int] = (-1, -2),
-             visualize: bool = False) -> bool:
-  """Checks if a path exists between `start` and `end`."""
-  assert maze[start] == maze[end] == 0, "One of `start` or `end` is a wall."
-  rows, cols = maze.shape
+  # Assign labels to each node.
+  input_nodes = [f"$x_{i}$" for i in range(layers[0])]
+  hidden_layers = [
+    [f"$h^{lyr}_{i}$" for i in range(layers[lyr])]
+    for lyr in range(1, num_layers - 1)
+  ]
+  output_nodes = [f"y{i}" for i in range(layers[-1])]
+  layers = [input_nodes, *hidden_layers, output_nodes]
 
-  # Create a matrix of visited nodes.
-  visited = np.zeros_like(maze).astype(np.bool_)
-  visited[start] = True
+  # Assign nodes.
+  G = nx.DiGraph()
+  for lyr, nodes in enumerate(layers):
+    G.add_nodes_from(nodes, layer=lyr)
+  
+  # Assign random edges.
+  for left_layer, right_layer in zip(layers[:-1], layers[1:]):
+    connections = list(itertools.product(left_layer, right_layer))
+    keep_p = 1 - sparsity
+    G.add_edges_from(connections[:int(keep_p * len(connections))])
+  
+  # Pretty plot.
+  pos = nx.multipartite_layout(G, subset_key="layer")
+  colors = ["gold"] + ["violet"] * (num_layers - 2) + ["limegreen"]
+  options = {
+    "node_color": [colors[data["layer"]] for node, data in G.nodes(data=True)],
+    "with_labels": True,
+    "node_size": 1000,
+    "pos": pos,
+  }
 
-  # Define search directions.
-  directions = [(1, 0), (-1, 0), (0, 1), (0, -1)]
+  return G, options
 
-  candidates = [(start, dist(start, end))]
-  found = False
-  while candidates:
-    print(candidates)
-    break
-    if visualize:
-      # Color visited nodes.
-      draw(np.where(visited, 0.5, maze))
+G, options = generate_mlp([3, 4, 6, 4, 6, 1], sparsity=0.5)
+nx.draw(G, **options)
+plt.show()
+``` 
+<img style="display: block; margin: auto;" src="/images/posts/graphsearch/sparse_mlp.png">
+    
 
-    # If we hit the end, a path exists.
-    if visited[end]:
-      found = True
-      break
 
-    # Pick the candidate closest to our goal.
-    # cy, cx = ??
+You can play around with various layer sizes and sparsities. The only important observation is that not all ancestor nodes may influence the output `loss` node (indexed as $y_i$).
 
-    for dy, dx in directions:
-      ny, nx = cy + dy, cx + dx
-      if (0 <= nx < cols and 0 <= ny < rows and not maze[ny][nx] == 1 and
-          not visited[ny][nx]):
-        candidates.append((ny, nx))
-        visited[ny][nx] = True
+The training objective of neural networks is often to minimize this `loss` by moving along the derivative and backpropagating gradients from the terminal node to the inputs. Each node in a neural network 'knows' how to compute its own derivative only if a gradient signal from the nodes succeeding it is available.
 
-  return found
+But in a graph with (easily) hundreds of nodes and edges, the autograd engine must know the exact order of reverse traversal.
 
-dijkstra(maze, visualize=True)
+In other words, for a root node `loss`, the autograd engine needs a list of all dependencies to `loss` all the way to input tensor(s), in the _order_ they impact it. This is like searching along the depth from the `loss` node, aha depth-first search!
+
+
+```python
+def toposort(G: nx.DiGraph, root: str):
+  """Returns a topological ordering from `root` on the graph `G`."""
+  visited = set()
+  order = []
+
+  def _dfs(node):
+    if node not in visited:
+      visited.add(node)
+      # If the node has ancestors, DFS along each.
+      for parent in G.predecessors(node):
+        _dfs(parent)
+      
+      # Once all ancestors have been evaluated,
+      # add the node to the topological order.
+      order.append(node)
+  
+  # Start searching for stopping points from the root.
+  _dfs(root)
+
+  # Because we start from the root node.
+  order.reverse()
+  return order
+
+order = toposort(G, 'y0')
+order
 ```
 
-    [((0, 1), 4)]
 
 
 
+    ['y0',
+     '$h^4_2$',
+     '$h^4_1$',
+     '$h^4_0$',
+     '$h^3_1$',
+     '$h^3_0$',
+     '$h^2_2$',
+     '$h^2_1$',
+     '$h^2_0$',
+     '$h^1_1$',
+     '$h^1_0$',
+     '$x_1$',
+     '$x_0$']
 
 
-    False
 
+Modulo the ugly $$\LaTeX$$ formatting, We can see that `toposort` returns an ordering from output node(s) to input node(s) whenever there is a path connecting them. 
 
-
-Ok, back to `toposort`. All autograd engines construct a directed computational graph of a given function. This 
-function takes a set of input tensor(s), and through layers of transformations, evaluates to a scalar `loss` value. 
-The goal is often to minimize this `loss` by moving along the derivative. But in a graph with (easily) hundreds of nodes and edges, an autograd engine must know the exact order of reverse traversal.
-
-In summary, we have a root node which is the `loss`, and we need a list of all dependencies to `loss` in the _order_
-they impact it. This is searching along the depth from the `loss` node: depth-first search.
+Let's draw these backward edges.
 
 
 ```python
 
+def draw_backward_traversal(G: nx.DiGraph, order: list[str]):
+  """Plots the reverse traversal of nodes given in `order` on the graph `G`."""
+  edges = []
+  for node in order:
+    # Point incident edges backwards
+    incident_edges = G.in_edges(node)
+    incident_edges = [e[::-1] for e in incident_edges]
+    edges.extend(incident_edges)
+
+  nx.draw(G, edgelist=edges, edge_color="red", **options)
+  plt.show()
+
+draw_backward_traversal(G, order)
 ```
+<img style="display: block; margin: auto;" src="/images/posts/graphsearch/mlp_backward.png">
+    
+
+
+See? The topological ordering automatically ignores nodes (even inputs) that do not influence the output.
+
+> N.B: This is a trivial (and possibly unconventional) example of sparsely-connected MLPs. In practice, MLPs are trained fully-connected. I should have used a better terminology, in that these graph nodes are arbitrary functions themselves. But I am sure it gets the idea across.
+
+## Summary
+
+Algorithms we discussed here are actually straightforward to understand if you have a view of the entire graph and you know the objective. The challenge in this class of computer science problems is how to express your computation in a way computers can understand, more than anything else. Specifically, this means:
+
+- Identifying a subproblem that can be recursed/iterated over.
+- How and when to recurse/iterate over that subproblem, and
+- Book-keeping states efficiently.
+
+We take for granted how much our brain does this in a diffused manner. Luckily, with frontier language models getting better, 'talking' with computers will get easier.
+
+I hoped to cover Dijkstra and A* as well, given how they add a sprinkle of intelligence (read heuristics) to solve certain classes of graph problems faster. That will be a different article for now.
