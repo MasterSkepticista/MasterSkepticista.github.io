@@ -303,7 +303,7 @@ plt.show()
     
 
 
-You can play around with various layer sizes and sparsities. The only important observation is that not all ancestor nodes may influence the output `loss` node (indexed as $y_i$).
+You can play around with various layer sizes and sparsities. The only important observation is that not all ancestor nodes may influence the output `loss` node (indexed as $$y_i$$).
 
 The training objective of neural networks is often to minimize this `loss` by moving along the derivative and backpropagating gradients from the terminal node to the inputs. Each node in a neural network 'knows' how to compute its own derivative only if a gradient signal from the nodes succeeding it is available.
 
