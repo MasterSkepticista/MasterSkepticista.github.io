@@ -222,11 +222,11 @@ BFS has the same time and space complexity as DFS in this example - $$O(N^2)$$. 
 
 ## Topological Sort
 
-Now to the intended goalpost - topological sorts. Neural networks are directed acyclic graphs that take a set of input tensor(s), and through multiple parameterized transformations, return a set of output tensor(s).
+Now to the intended goalpost - topological sort. It helps to understand why we need it in the first place. Neural networks are directed acyclic graphs that take a set of input tensor(s), and through multiple parameterized transformations, return a set of output tensor(s).
 
 We will emulate a different toy problem; by generating sparsely-connected perceptrons. We control sparsity using a parameter. Note that if sparsity is too high (say above `0.5`), you may end up with graphs unconnected with inputs or outputs. It won't impact our computation though. You can experiment with different values to understand how `toposort` identifies viable orderings.
 
-Bear with me for a moment on this boilerplate code to visualize, before we come to `toposort(...)`.
+Bear with me on this boilerplate code to visualize our graph, before we implement `toposort(...)`.
 
 
 ```python
@@ -298,7 +298,7 @@ The training objective of neural networks is often to minimize this `loss` by mo
 
 But in a graph with (easily) hundreds of nodes and edges, the autograd engine must know the exact order of reverse traversal.
 
-In other words, for a root node `loss`, the autograd engine needs a list of all dependencies to `loss` all the way to input tensor(s), in the _order_ they impact it. This is like searching along the depth from the `loss` node, aha depth-first search! We will use `toposort` to find these orderings from a given root node to the stopping points on the graph (i.e. nodes with no more ancestors).
+In other words, for a root node `loss`, the autograd engine needs a list of all dependencies to `loss` all the way to input tensor(s), in the _order_ they impact it. This is like searching along the depth from the `loss` node: depth-first search! We will use `toposort` to find these orderings from a given root node to the stopping points on the graph (i.e. nodes with no more ancestors).
 
 
 ```python
@@ -381,7 +381,7 @@ See? The topological ordering automatically ignores nodes (even inputs) that do 
 
 This exercise taught me that algorithms of this class are actually straightforward to understand if you have a view of the entire graph and you know the objective. The challenge lies in expressing your computation in a way computers can understand. Specifically:
 
-- How can you identifying a subproblem that can be recursed/iterated over.
+- How can you identify a sub-problem that can be recursed/iterated over.
 - How and when to recurse/iterate over that subproblem, and
 - How to book-keep states efficiently.
 
