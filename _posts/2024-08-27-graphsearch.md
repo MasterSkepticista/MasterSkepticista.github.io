@@ -7,13 +7,13 @@ tags:
   - cs
 ---
 
-One of my (sub) goals was to study Topological sort while studying autograd internals. I realized I could not do justice studying it in isolation. And while I would have to study depth-first search (which topological sort is based on) from scratch anyway, might as well add Breadth-first Search to the cart.
+One of my goals while studying autograd internals was to understand Topological sort: an ordering of nodes which allows for backpropagation. It would have a feeling of incompleteness studying it in isolation. And while I would have to study Depth-First Search (which topological sort is based on) from scratch anyway, might as well add Breadth-First Search to the cart.
 
-- [Intro](#intro)
-- [Toy problem: Maze solver](#toy-problem-maze-solver)
+- [Toy problem](#toy-problem)
   - [Depth-First Search](#depth-first-search)
   - [Breadth-First Search](#breadth-first-search)
 - [Topological Sort](#topological-sort)
+- [We knew it all along, didn't we?](#we-knew-it-all-along-didnt-we)
 
 ```python
 import random
@@ -23,12 +23,8 @@ import numpy as np
 from IPython import display
 ```
 
-## Toy Problem: Maze solver
-A maze is a mesh of cells with distinct paths that can (or cannot) be traversed, it is a graph. We will pick a toy problem, with the goal of finding a path from the origin (top-left) to 
-the sink (bottom-right) of a randomly generated maze/graph. There are [several](https://en.wikipedia.org/wiki/Graph_(abstract_data_type)#Common_data_structures_for_graph_representation) ways to encode a graph. Our graph will be encoded as an adjacency matrix, with `1` representing a wall and `0` representing a pathway.
-
-I will use a simple recusive backtracking algorithm to generate mazes. [Here](https://weblog.jamisbuck.org/2011/2/7/maze-generation-algorithm-recap) is a goldmine of other algorithms if you are interested.
-
+## Toy Problem
+We will pick a problem of finding a path from the origin (top-left) to the sink (bottom-right) of a randomly generated maze. A maze is a mesh of cells with distinct paths that can (or cannot) be traversed, it is a graph. There are [several](https://en.wikipedia.org/wiki/Graph_(abstract_data_type)#Common_data_structures_for_graph_representation) ways to encode a graph. Here, we will encode graph as an adjacency matrix, with `1` representing a wall and `0` representing a pathway.
 
 ```python
 def draw(maze: np.ndarray):
@@ -38,7 +34,11 @@ def draw(maze: np.ndarray):
   plt.axis("off")
   plt.imshow(maze, cmap="plasma_r")
   plt.show()
+```
 
+I will use a simple recusive backtracking algorithm to generate mazes. [Here](https://weblog.jamisbuck.org/2011/2/7/maze-generation-algorithm-recap) is a goldmine of other algorithms (with beautiful animations) if you are interested.
+
+```python
 def generate_maze(n: int) -> np.ndarray:
   """Generates a random N*N maze using recursive backtracking."""
   # Make `n` odd. Why?
@@ -89,21 +89,19 @@ random.seed(42)
 maze = generate_maze(50)
 draw(maze)
 
-```    
+```
 <img style="display: block; margin: auto;" src="/images/posts/graphsearch/maze.png">
     
 
-Our goal now, is to search for a path from the origin (top-left) to sink (bottom-right). During our maze traversal, we will explore neighbors one step away.
-
-
 ```python
 def get_neighbors(y, x):
-  """List of +/-1 neighbors of (y, x)."""
   return [
     (y + dy, x + dx) 
     for dy, dx in [(1, 0), (-1, 0), (0, 1), (0, -1)]
   ]
 ```
+
+Our goal is to search for a path from the origin (top-left) to sink (bottom-right). During our maze traversal, we will explore neighbors one step away.
 
 
 ## Depth-First Search
@@ -114,7 +112,7 @@ A key feature of this search is that it exhaustively searches through all possib
   <img src="https://imgs.xkcd.com/comics/dfs.png">
 </center>
 
-> Pro-tip: Execute this in a notebook for an animated visual.
+> Tip: Run this in a notebook for an auto-updating plot.
 
 ```python
 def dfs(graph: np.ndarray,
@@ -154,10 +152,7 @@ def dfs(graph: np.ndarray,
 
 dfs(maze, visualize=True)
 ```
-<img style="display: block; margin: auto;" src="/images/posts/graphsearch/dfs_maze.png">
-   
-    True
-
+<img style="display: block; margin: auto;" src="/images/posts/graphsearch/dfs.gif">
 
 DFS search time is proportional to the number of vertices in our adjacency matrix - $$O(N^2)$$. The space required to store intermediate states is proportional to the number of vertices (since `visited` array and `candidates` stack are the only auxiliary objects in our function), therefore $$O(N^2)$$.
 
@@ -167,7 +162,7 @@ A natural modification to DFS could be made on candidate selection. In fact, all
 
 Instead of going down the rabbit-hole on a single vertex, what if we first explore all vertices available at a given level?
 
-> Pro-tip: Execute this in a notebook for an animated visual.
+> Tip: Run this in a notebook for an auto-updating plot.
 
 ```python
 def bfs(graph: np.ndarray,
@@ -208,14 +203,9 @@ def bfs(graph: np.ndarray,
 
 bfs(maze, visualize=True)
 ```
-<img style="display: block; margin: auto;" src="/images/posts/graphsearch/bfs_maze.png">
-    
+<img style="display: block; margin: auto;" src="/images/posts/graphsearch/bfs.gif">
 
-    True
-
-
-
-BFS has the same time and space complexity as DFS in this example - $$O(N^2)$$.
+BFS has the same time and space complexity as DFS in this example - $$O(N^2)$$. It also _feels_ parallel. It is because it switches between candidates very quickly - exploring horizontally across each level before exhausting and going to the next level in depth.
 
 > Note: We can do a microbenchmark to see that neither of DFS or BFS is relatively faster. This is an expected outcome for large, uniformly random mazes. Real world graphs typically carry structure bias towards depth (or width). Hence, choice of DFS/BFS should be informed by the structure of the graph.
 
@@ -232,11 +222,11 @@ BFS has the same time and space complexity as DFS in this example - $$O(N^2)$$.
 
 ## Topological Sort
 
-Now to what I wanted to study all along. Neural networks are directed acyclic graphs that take a set of input tensor(s), and through multiple parameterized transformations, return a set of outputs.
+Now to the intended goalpost - topological sorts. Neural networks are directed acyclic graphs that take a set of input tensor(s), and through multiple parameterized transformations, return a set of output tensor(s).
 
-We start with a method to generate sparsely-connected MLP graphs. We control sparsity using a parameter. Note that if sparsity is too high (say above `0.5`), you may end up with graphs unconnected with inputs or outputs. It won't impact our computation though. You can experiment with different values to understand how `toposort` identifies viable orderings.
+We will emulate a different toy problem; by generating sparsely-connected perceptrons. We control sparsity using a parameter. Note that if sparsity is too high (say above `0.5`), you may end up with graphs unconnected with inputs or outputs. It won't impact our computation though. You can experiment with different values to understand how `toposort` identifies viable orderings.
 
-Bear with me for a moment. We will write a method `toposort(...)` to find these orderings from a given root node to the stopping points on the graph (i.e. nodes with no more ancestors).
+Bear with me for a moment on this boilerplate code to visualize, before we come to `toposort(...)`.
 
 
 ```python
@@ -302,14 +292,13 @@ plt.show()
 <img style="display: block; margin: auto;" src="/images/posts/graphsearch/sparse_mlp.png">
     
 
-
 You can play around with various layer sizes and sparsities. The only important observation is that not all ancestor nodes may influence the output `loss` node (indexed as $$y_i$$).
 
 The training objective of neural networks is often to minimize this `loss` by moving along the derivative and backpropagating gradients from the terminal node to the inputs. Each node in a neural network 'knows' how to compute its own derivative only if a gradient signal from the nodes succeeding it is available.
 
 But in a graph with (easily) hundreds of nodes and edges, the autograd engine must know the exact order of reverse traversal.
 
-In other words, for a root node `loss`, the autograd engine needs a list of all dependencies to `loss` all the way to input tensor(s), in the _order_ they impact it. This is like searching along the depth from the `loss` node, aha depth-first search!
+In other words, for a root node `loss`, the autograd engine needs a list of all dependencies to `loss` all the way to input tensor(s), in the _order_ they impact it. This is like searching along the depth from the `loss` node, aha depth-first search! We will use `toposort` to find these orderings from a given root node to the stopping points on the graph (i.e. nodes with no more ancestors).
 
 
 ```python
@@ -386,15 +375,15 @@ draw_backward_traversal(G, order)
 
 See? The topological ordering automatically ignores nodes (even inputs) that do not influence the output.
 
-> N.B: This is a trivial (and possibly unconventional) example of sparsely-connected MLPs. In practice, MLPs are trained fully-connected. I should have used a better terminology, in that these graph nodes are arbitrary functions themselves. But I am sure it gets the idea across.
+> N.B: This is a possibly unconventional example of sparsely-connected MLPs. In practice, MLPs are trained fully-connected. I should have used a better terminology, in that these graph nodes are arbitrary functions themselves. But I am sure it gets the idea across.
 
-## Summary
+## We knew it all along, didn't we?
 
-Algorithms we discussed here are actually straightforward to understand if you have a view of the entire graph and you know the objective. The challenge in this class of computer science problems is how to express your computation in a way computers can understand, more than anything else. Specifically, this means:
+This exercise taught me that algorithms of this class are actually straightforward to understand if you have a view of the entire graph and you know the objective. The challenge lies in expressing your computation in a way computers can understand. Specifically:
 
-- Identifying a subproblem that can be recursed/iterated over.
+- How can you identifying a subproblem that can be recursed/iterated over.
 - How and when to recurse/iterate over that subproblem, and
-- Book-keeping states efficiently.
+- How to book-keep states efficiently.
 
 We take for granted how much our brain does this in a diffused manner. Luckily, with frontier language models getting better, 'talking' with computers will get easier.
 
