@@ -7,7 +7,7 @@ tags:
   - cs
 ---
 
-One of my goals while studying autograd internals was to understand Topological sort: an ordering of nodes which allows for backpropagation. It would have a feeling of incompleteness studying it in isolation. And while I would have to study Depth-First Search (which topological sort is based on) from scratch anyway, might as well add Breadth-First Search to the cart.
+While diving into autograd internals, I had this ambitious goal to crack the mystery of Topological sort — an important step in backpropagation. But just studying it alone felt like buying a single sock. Since I needed to brush up on Depth-First Search anyway (Topological sort's older sibling), I figured, why not toss Breadth-First Search into the cart too? After all, who goes shopping for algorithms and leaves with just one?
 
 - [Toy problem](#toy-problem)
   - [Depth-First Search](#depth-first-search)
@@ -106,7 +106,7 @@ Our goal is to search for a path from the origin (top-left) to sink (bottom-righ
 
 ## Depth-First Search
 
-A key feature of this search is that it exhaustively searches through all possible sub-vertices connected to a given vertex, before backtracking and moving to a different vertex at the same level. It has no foresight of how far it is from its goal. Other words, even if it is _very_ close to a solution, and then yeets off to a random sub-vertex, it will not come back until it has exhaustively searched in that wrong direction.
+A key feature of this search is that it exhaustively searches through all possible sub-vertices connected to a given vertex, before backtracking and moving to a different vertex at the same level. It is oblivious to how close it might be to its goal. Other words, even if it is _very_ close to a solution, and then yeets off to a random sub-vertex, it will not return until it has exhaustively searched that dead end.
 
 <center>
   <img src="https://imgs.xkcd.com/comics/dfs.png">
