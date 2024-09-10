@@ -7,7 +7,7 @@ tags:
   - cs
 ---
 
-While diving into autograd internals, I had this ambitious goal to crack the mystery of Topological sort — an important step in backpropagation. But just studying it alone felt like buying a single sock. Since I needed to brush up on Depth-First Search anyway (Topological sort's older sibling), I figured, why not toss Breadth-First Search into the cart too? After all, who goes shopping for algorithms and leaves with just one?
+While diving into autograd internals, I had to pause at Topological sort — an important step in backpropagation. Studying it alone felt like buying a single sock. Since I would have to brush up on Depth-First Search anyway (Topological sort's older sibling), I decided to also toss Breadth-First Search into the cart. After all, who goes shopping for algorithms and leaves with just one?
 
 - [Toy problem](#toy-problem)
   - [Depth-First Search](#depth-first-search)
@@ -24,7 +24,7 @@ from IPython import display
 ```
 
 ## Toy Problem
-We will pick a problem of finding a path from the origin (top-left) to the sink (bottom-right) of a randomly generated maze. A maze is a mesh of cells with distinct paths that can (or cannot) be traversed, it is a graph. There are [several](https://en.wikipedia.org/wiki/Graph_(abstract_data_type)#Common_data_structures_for_graph_representation) ways to encode a graph. Here, we will encode graph as an adjacency matrix, with `1` representing a wall and `0` representing a pathway.
+We will pick a problem of finding a path from the origin (top-left) to the sink (bottom-right) of a randomly generated maze. Our definition of a maze, here, is a mesh of cells with distinct paths that can (or cannot) be traversed. It can be encoded as a graph. There are [several](https://en.wikipedia.org/wiki/Graph_(abstract_data_type)#Common_data_structures_for_graph_representation) ways to encode a graph. We will encode ours as an adjacency matrix, with `1` representing a wall and `0` representing a pathway.
 
 ```python
 def draw(maze: np.ndarray):
@@ -36,7 +36,7 @@ def draw(maze: np.ndarray):
   plt.show()
 ```
 
-I will use a simple recusive backtracking algorithm to generate mazes. [Here](https://weblog.jamisbuck.org/2011/2/7/maze-generation-algorithm-recap) is a goldmine of other algorithms (with beautiful animations) if you are interested.
+I will use a simple recusive backtracking algorithm to generate mazes. [Here](https://weblog.jamisbuck.org/2011/2/7/maze-generation-algorithm-recap) is a goldmine of other algorithms (with beautiful animations) for the curious mind.
 
 ```python
 def generate_maze(n: int) -> np.ndarray:
@@ -92,6 +92,7 @@ draw(maze)
 ```
 <img style="display: block; margin: auto;" src="/images/posts/graphsearch/maze.png">
     
+Our goal is to search for a path from the origin (top-left) to sink (bottom-right). During our maze traversal, we are free to explore neighbors one step away.
 
 ```python
 def get_neighbors(y, x):
@@ -101,12 +102,9 @@ def get_neighbors(y, x):
   ]
 ```
 
-Our goal is to search for a path from the origin (top-left) to sink (bottom-right). During our maze traversal, we will explore neighbors one step away.
-
-
 ## Depth-First Search
 
-A key feature of this search is that it exhaustively searches through all possible sub-vertices connected to a given vertex, before backtracking and moving to a different vertex at the same level. It is oblivious to how close it might be to its goal. Other words, even if it is _very_ close to a solution, and then yeets off to a random sub-vertex, it will not return until it has exhaustively searched that dead end.
+A key feature of this algorithm is that it exhaustively searches through all possible sub-vertices connected to a given vertex, before backtracking and moving to a different vertex at the same level. It is oblivious to how close it might be to its goal. Other words, even if it is _very_ close to a solution, and then yeets off to a random sub-vertex, it will not return until it has exhaustively searched the dead end.
 
 <center>
   <img src="https://imgs.xkcd.com/comics/dfs.png">
@@ -158,9 +156,7 @@ DFS search time is proportional to the number of vertices in our adjacency matri
 
 ## Breadth-First Search
 
-A natural modification to DFS could be made on candidate selection. In fact, all the search algorithms we will see today are merely intelligent ways of 'choosing where to search'.
-
-Instead of going down the rabbit-hole on a single vertex, what if we first explore all vertices available at a given level?
+A natural modification to DFS could be made on candidate selection. In fact, graph search algorithms like A* and Dijkstra are merely intelligent ways of 'choosing where to search'. For BFS, instead of going down the rabbit-hole on a single vertex, what if we first explore all vertices available at a given level?
 
 > Tip: Run this in a notebook for an auto-updating plot.
 
@@ -207,8 +203,7 @@ bfs(maze, visualize=True)
 
 BFS has the same time and space complexity as DFS in this example - $$O(N^2)$$. It also _feels_ parallel. It is because it switches between candidates very quickly - exploring horizontally across each level before exhausting and going to the next level in depth.
 
-> Note: We can do a microbenchmark to see that neither of DFS or BFS is relatively faster. This is an expected outcome for large, uniformly random mazes. Real world graphs typically carry structure bias towards depth (or width). Hence, choice of DFS/BFS should be informed by the structure of the graph.
-
+> Note: We can do a microbenchmark to see that neither of DFS or BFS is relatively faster. This is expected for large, uniformly random mazes. Real world graphs typically carry structure bias towards depth (or width). Hence, your choice of DFS/BFS should be informed by the structure of the graph.
 
 ```python
 # takes ~1 min
@@ -222,9 +217,13 @@ BFS has the same time and space complexity as DFS in this example - $$O(N^2)$$. 
 
 ## Topological Sort
 
-Now to the intended goalpost - topological sort. It helps to understand why we need it in the first place. Neural networks are directed acyclic graphs that take a set of input tensor(s), and through multiple parameterized transformations, return a set of output tensor(s).
+Now to the intended goalpost - topological sort. It helps to understand why we need it in the first place. Neural networks are directed acyclic graphs that take a set of input tensor(s), and through multiple operations, return a set of output tensor(s), on which we compute `loss`, a proxy for how well the network is behaving.
 
-We will emulate a different toy problem; by generating sparsely-connected perceptrons. We control sparsity using a parameter. Note that if sparsity is too high (say above `0.5`), you may end up with graphs unconnected with inputs or outputs. It won't impact our computation though. You can experiment with different values to understand how `toposort` identifies viable orderings.
+The training objective of neural networks is to minimize this `loss` by moving along a direction (a.k.a derivative) and [back]propagating this feedback from the `loss` node to the inputs. Each node in a neural network 'knows' how to compute its own derivative only when a gradient signal from the nodes succeeding it is available.
+
+But in a graph with (easily) hundreds of nodes and edges, the autograd engine cannot do a big bang calculation of everything. It must know the exact order of reverse traversal - both for correctness and efficiency of compute.
+
+We will emulate a neural network by generating a web of nodes that are randomly connected to each other between layers. We control this randomness (ten-dollar word is _sparsity_) using a parameter. Note that if sparsity is too high (say above `0.5`), you may end up with unconnected layers. It won't impact our intent though. I even recommend you experiment with different values to understand how `toposort` identifies viable orderings.
 
 Bear with me on this boilerplate code to visualize our graph, before we implement `toposort(...)`.
 
@@ -292,13 +291,9 @@ plt.show()
 <img style="display: block; margin: auto;" src="/images/posts/graphsearch/sparse_mlp.png">
     
 
-You can play around with various layer sizes and sparsities. The only important observation is that not all ancestor nodes may influence the output `loss` node (indexed as $$y_i$$).
+The only important observation is that not all nodes may influence the terminal `loss` node (indexed as $$y_i$$) in this example. Our sorting algorithm should identify this.
 
-The training objective of neural networks is often to minimize this `loss` by moving along the derivative and backpropagating gradients from the terminal node to the inputs. Each node in a neural network 'knows' how to compute its own derivative only if a gradient signal from the nodes succeeding it is available.
-
-But in a graph with (easily) hundreds of nodes and edges, the autograd engine must know the exact order of reverse traversal.
-
-In other words, for a root node `loss`, the autograd engine needs a list of all dependencies to `loss` all the way to input tensor(s), in the _order_ they impact it. This is like searching along the depth from the `loss` node: depth-first search! We will use `toposort` to find these orderings from a given root node to the stopping points on the graph (i.e. nodes with no more ancestors).
+In other words, for a root node `loss`, the autograd engine needs a list of all dependencies to `loss` all the way to input tensor(s), in the _order_ they impact it. This is like searching along the depth from the `loss` node (did it click in your mind?). We will use `toposort` to find these orderings from a given root node to the stopping points on the graph (i.e. nodes with no more ancestors) via depth-first search.
 
 
 ```python
@@ -371,7 +366,6 @@ draw_backward_traversal(G, order)
 ```
 <img style="display: block; margin: auto;" src="/images/posts/graphsearch/mlp_backward.png">
     
-
 
 See? The topological ordering automatically ignores nodes (even inputs) that do not influence the output.
 
