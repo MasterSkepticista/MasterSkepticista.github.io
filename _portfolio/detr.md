@@ -4,37 +4,44 @@ excerpt: "A recipe to train Object Detection Transformers (really) fast.<br/><im
 collection: portfolio
 ---
 
-Ok, I did not mean PyTorch is slow. But it is always a fun (and worthy) exercise to flex how fast you can _really_ go with compilers when you lay out computation in the right way.
+PyTorch is far from being concluded slow. But it is always a fun (and worthwhile) exercise to flex how fast you can _really_ go with compilers if you can lay out a computation in the right way.
 
-This is my work log of building a Detection Transformer ([DETR](https://arxiv.org/abs/2005.12872)) training pipeline in JAX. DETR architecture is special for many reasons - one of which is that it predicts bounding boxes and class labels directly, instead of relying on region-proposals and custom post-processing techniques. Second, I personally love the elegance of an end-to-end differentiable method like DETR. It fits the _spirit of deep learning_ and borrows wisdom from Rich Sutton's [Bitter Lesson](http://incompleteideas.net/IncIdeas/BitterLesson.html) of AI research.
+This is my work log of building a Detection Transformer ([DETR](https://arxiv.org/abs/2005.12872)) training pipeline in JAX. I find this object detection architecture special for many reasons:
 
-DETR is slow to train, though. While there have been many successors to the original DETR that improve algorithmic convergence rates, like [Deformable-DETR](https://arxiv.org/abs/2010.04159), or [Conditional-DETR](https://arxiv.org/abs/2108.06152), none of these implementations focus on running 'efficiently' on the GPU. I will walk through certain techniques that can provide up to $$30\%$$ higher GPU utilization against a best-effort optimized [PyTorch implementation of DETR](https://github.com/facebookresearch/detr).
+1. It predicts bounding boxes and class labels directly, instead of generating a gazillion region-proposals and relying on esoteric post-processing techniques. 
+2. It is end-to-end differentiable and parallelizable.
+3. It fits the 'spirit of deep learning' and borrows wisdom from Rich Sutton's [Bitter Lesson](http://incompleteideas.net/IncIdeas/BitterLesson.html) of AI research.
 
-I highly recommend you read the original DETR [paper](https://arxiv.org/abs/2005.12872).
+I recommend you read the original DETR [paper](https://arxiv.org/abs/2005.12872).
 
+> By the way, if everything beyond this point reads like hieroglyphics, you will (probably) take away a good deal of lessons reading Sutton's article pointed above. Thank you if you make it till the end!
+
+DETR is slow to train. While there have been successors to DETR that improve algorithmic convergence rates, like [Deformable-DETR](https://arxiv.org/abs/2010.04159), or [Conditional-DETR](https://arxiv.org/abs/2108.06152), none of these implementations focus on running 'efficiently' on the GPU. There is a great deal of efficiency to be had here, which was the objective of this project. I will walk through the techniques that helped me provide up to $$30\%$$ higher GPU utilization against a best-effort optimized [PyTorch implementation of DETR](https://github.com/facebookresearch/detr).
 
 The Bottleneck
 ===
 <img src='https://raw.githubusercontent.com/MasterSkepticista/detr/main/.github/detr.png'>
 <p align='center'> Figure: DETR Architecture </p>
-DETR has three main components: a CNN backbone (typically a ResNet), a stack of encoder-decoder transformer blocks, and a bipartite matcher. Of the three, bipartite matching (hungarian) algorithm runs on the CPU. In fact, the original DETR implementation calls [`scipy.optimize.linear_sum_assignment`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.linear_sum_assignment.html) sequentially, for each input-target pair. This leaves the GPU idle. Part of the gains we will see later, are by reducing this idle time.
+DETR has three main components: a convolutional backbone (typically a ResNet), a stack of encoder-decoder transformer blocks, and a bipartite matcher. Of the three, bipartite matching (hungarian) algorithm runs on the CPU. In fact, the original DETR implementation calls [`scipy.optimize.linear_sum_assignment`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.linear_sum_assignment.html) sequentially, for each input-target pair. This leaves the GPU idle. Part of the gains we will see later, are by reducing this idle time.
 
 > Idle GPU is wasted GPU.
 
 Baseline
 ===
-Let us measure what we are starting with. Our bench this time is an 8-A6000 cluster without NVLink. I made a couple of changes to ensure PyTorch version was 'as fast as possible'. Here is a summary of digressions:
-* Use `torch>=2.3` to ensure [Flash Attention](https://arxiv.org/abs/2205.14135) is used in `F.scaled_dot_product_attention`.
-* Enable tensor cores; set `torch.set_float32_matmul_precision(...)` to "medium".
+To improve 'something', we must 'measure' that something. Our bench this time is an 8-A6000 cluster. I made a couple of changes to ensure PyTorch version was 'as fast as possible'. Here is a summary of digressions:
+* Use [Flash Attention](https://arxiv.org/abs/2205.14135) in `F.scaled_dot_product_attention`.
+* Enable use of tensor cores by setting `torch.set_float32_matmul_precision(...)` to "medium" ("high" works just as good).
 * Wrap forward pass using `torch.autocast` to `bfloat16`.
 
-With these changes, it took 3 days (2.1 steps/s) to train a 300-epoch baseline on our 8-GPU cluster. I will skip the napkin math, but this is already faster than authors' numbers when normalized for per GPU FLOP throughput - notably from use of the new flash attention kernel that Ampere GPUs support.
+With these changes, it took 3 days (2.1 steps/s) to train a 300-epoch baseline on our cluster. I will skip the napkin math, but this is already faster than authors' numbers when normalized for per GPU FLOP throughput - notably from use of the new flash attention kernel that Ampere GPUs support.
 
-> N.B.: While I did try `torch.compile` with different options on sub-parts of the model/training step, it either ended up giving the same throughput, or failed to compile. 
+> N.B.: I did try `torch.compile` with different options on sub-parts of the model/training step, it either ended up giving the same throughput, or failed to compile. So 'it is what it is'.
 
 Refactor
 ===
-I decided to implement DETR in JAX. You can think of JAX as a native front-end language to write [XLA](https://openxla.org/xla) optimized programs. XLA generally outperforms the superset of all PyTorch optimizations _when done right, by a large margin_. One downside of working with XLA/JAX is that it is harder to debug `jit` compiled programs. PyTorch, on the other hand, dispatches CUDA kernels eagerly (except when wrapped with `torch.compile`), which makes it easiest to debug and work with. But when you consider the cost of few compile minutes over how long production training runs like these typically are, it is worth the tradeoff.
+I decided to implement DETR in JAX. You can think of JAX as a front-end language to write [XLA](https://openxla.org/xla) optimized programs. XLA is an open-source Machine Learning compiler that optimizes Linear Algebra operations. XLA generally outperforms the superset of all PyTorch optimizations _when done right, by a good margin_. One downside of working with XLA/JAX is that it is harder to debug `jit` compiled programs. PyTorch, on the other hand, dispatches CUDA kernels eagerly (except when wrapped with `torch.compile`), which makes it easiest to debug and work with. But when you consider the cost of few compile minutes over how long production training runs like these typically are, it is worth the tradeoff.
+
+> JAX is improving rapidly. I would change my opinion on it being _slower_ rather than _harder_ to debug, as compared to PyTorch.
 
 Luckily a dusty [re-implementation](https://github.com/google-research/scenic/tree/main/scenic/projects/baselines/detr) of DETR in JAX made for a good head-start. But it did not work out-of-the-box due to deprecated JAX and Flax APIs. To get the ball rolling, I made a minimal set of [changes](https://github.com/google-research/scenic/pull/1062), without any optimizations.
 
@@ -187,8 +194,8 @@ For now, let us be content with the _potential_ speedup. We are now at $$3.0$$ s
 
 Summary
 ---
-Further gains are possible by replacing exact bipartite matching with an approximate matcher. In fact, it may be a good reason to do so - just like minibatch SGD does not give an accurate gradient estimate at each step. It is arguably its strong suit on why it converges so well. 
+Further gains are possible by replacing exact matching with an approximate matching. It may be a good reason to do so - just like how minibatch SGD is random by its very nature. It is arguably its strong suit on its nice convergence properties.
 
 Why should a matching algorithm be exact, if we are spending ~0.5M steps to converge anyway? Are there gains to be had by having an 'approximate' matching? Yes, and one way to go about it is using a regularized solver like Sinkhorn algorithm. But that's for another day.
 
-Training code for DETR with all above optimizations is available [here](https://github.com/masterskepticista/detr).
+You can find the code for DETR with all above optimizations [here](https://github.com/masterskepticista/detr). Update: It also supports Sinkhorn algorithm now!
