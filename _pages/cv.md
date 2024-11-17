@@ -11,7 +11,7 @@ redirect_from:
 
 ## Education
 * B.Tech. in Electronics and Communications Engineering, Nirma University, 2020 \
-  Capstone Project: Mechanistic Interpretability of Structural MRI Segmentation Models.
+  [Capstone Project: Interpretability for Structural MRI Segmentation Models](https://drive.google.com/file/d/181hEFHXJx7T_yeMJ6m2h1QTKCPB-LX23/view?usp=sharing).
 
 ## Awards
 * Division Recognition Award (2021, 2022), Intel.
