@@ -13,3 +13,5 @@ package-lock.json
 
 venv
 __pycache__
+
+.ipynb_checkpoints

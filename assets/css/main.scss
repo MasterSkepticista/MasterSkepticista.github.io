@@ -39,3 +39,34 @@
 @import "vendor/font-awesome/brands";
 @import "vendor/magnific-popup/magnific-popup";
 @import "print";
+
+@font-face {
+  font-family: 'CMU Serif Roman';
+  font-style: normal;
+  font-weight: normal;
+  src: local('CMU Serif Roman'), url('../fonts/cmunrm.woff') format('woff');
+}
+
+
+@font-face {
+  font-family: 'CMU Serif Italic';
+  font-style: normal;
+  font-weight: normal;
+  src: local('CMU Serif Italic'), url('../fonts/cmunti.woff') format('woff');
+}
+
+
+@font-face {
+  font-family: 'CMU Serif Bold';
+  font-style: normal;
+  font-weight: normal;
+  src: local('CMU Serif Bold'), url('../fonts/cmunbx.woff') format('woff');
+}
+
+
+@font-face {
+  font-family: 'CMU Serif BoldItalic';
+  font-style: normal;
+  font-weight: normal;
+  src: local('CMU Serif BoldItalic'), url('../fonts/cmunbi.woff') format('woff');
+}
